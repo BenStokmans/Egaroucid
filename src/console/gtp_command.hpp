@@ -384,6 +384,33 @@ void gtp_list_games(int id){
     std::cout << gtp_head(id) << " " << GTP_RULE_ID << GTP_ENDL;
 }
 
+void gtp_eval(int id, std::string arg, Board_info *board, State *state, Options *options){
+    uint_fast8_t player = GTP_PLAYER_UNDEFINED;
+    try{
+        player = check_color(arg);
+    } catch (const std::invalid_argument& e) {
+        player = GTP_PLAYER_UNDEFINED;
+    } catch (const std::out_of_range& e) {
+        player = GTP_PLAYER_UNDEFINED;
+    }
+    if (player != BLACK && player != WHITE){
+        std::cout << gtp_error_head(id) << " " << "illegal color" << GTP_ENDL;
+        return;
+    }
+    if (player != board->player){
+        board->board.pass();
+        board->player ^= 1;
+    }
+    if (board->board.get_legal() == 0ULL){
+        std::cout << gtp_head(id) << " PASS" << GTP_ENDL;
+        return;
+    }
+    int eval = ai(board->board, options->level, true, BOOK_ACCURACY_LEVEL_INF, true, options->show_log, state->date).value;
+    ++state->date;
+    state->date = manage_date(state->date);
+    std::cout << gtp_head(id) << " " << eval << GTP_ENDL;
+}
+
 void gtp_check_command(Board_info *board, State *state, Options *options){
     std::string cmd_line = gtp_get_command_line();
     std::string cmd, arg;
@@ -456,6 +483,9 @@ void gtp_check_command(Board_info *board, State *state, Options *options){
             break;
         case GTP_CMD_ID_LIST_GAMES:
             gtp_list_games(id);
+            break;
+        case GTP_CMD_ID_EVAL:
+            gtp_eval(id, arg, board, state, options);
             break;
         default:
             break;
